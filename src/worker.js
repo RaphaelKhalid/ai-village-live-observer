@@ -156,10 +156,20 @@ function withSecurityHeaders(response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+const loginPage = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Village Observer</title><style>body{font:16px system-ui;display:grid;place-items:center;min-height:100vh;background:#f7f5ed;color:#24321f}form{background:white;padding:2rem;border-radius:18px;box-shadow:0 8px 30px #0002}input,button{font:inherit;padding:.7rem;border-radius:10px;border:1px solid #ccd5bc}button{background:#668f3d;color:white;border:0;margin-left:.4rem}</style><form method="post" action="/login"><h1>Village Observer</h1><p>Enter the access password.</p><input name="password" type="password" autofocus required><button>Enter</button></form>`;
+async function digest(value) { const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+async function authorized(request, env) { const token = request.headers.get("cookie")?.match(/village_session=([^;]+)/)?.[1]; return Boolean(token && env.SESSION_TOKEN && token === env.SESSION_TOKEN); }
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === "/login" && request.method === "POST") {
+      const form = await request.formData(); const supplied = String(form.get("password") || ""); const hash = await digest(`${env.PASSWORD_SALT || ""}:${supplied}`);
+      if (env.PASSWORD_HASH && hash === env.PASSWORD_HASH) return new Response(null, { status: 302, headers: { location: "/", "set-cookie": `village_session=${env.SESSION_TOKEN}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400` } });
+      return new Response(loginPage.replace("Enter the access password.", "Incorrect password. Try again."), { status: 401, headers: { "content-type": "text/html; charset=utf-8" } });
+    }
     if (request.method !== "GET" && request.method !== "HEAD") return jsonResponse({ error: "Method not allowed" }, { status: 405, headers: { allow: "GET, HEAD" } });
+    if (!url.pathname.startsWith("/login") && !(await authorized(request, env))) return new Response(loginPage, { status: 401, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     if (url.pathname === "/health") return jsonResponse({ ok: true, service: "ai-village-live-observer" }, { headers: { "cache-control": "no-store" } });
     const match = url.pathname.match(/^\/api\/village\/([^/]+)$/);
     if (match) {
