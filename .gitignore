@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+.workers-types-latest/
+dist/
+.dev.vars
+.env
+.env.*
+*.log
+

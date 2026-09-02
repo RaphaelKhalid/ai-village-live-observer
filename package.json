@@ -1,0 +1,17 @@
+{
+  "name": "ai-village-live-observer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-live-frontend.mjs",
+    "dev": "npm run build && wrangler dev --local",
+    "test": "node test-shape.mjs",
+    "types": "wrangler types",
+    "dry-run": "npm run build && wrangler deploy --dry-run --outdir dist",
+    "deploy": "npm run build && wrangler deploy --minify"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}
